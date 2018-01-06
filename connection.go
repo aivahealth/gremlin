@@ -45,10 +45,8 @@ func (c *Client) Exec(req *Request) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	//fmt.Println(string(requestMessage))
 	// Open a TCP connection
 	if err = c.Ws.WriteMessage(websocket.BinaryMessage, requestMessage); err != nil {
-		//print("error", err)
 		return nil, err
 	}
 	return c.ReadResponse()
@@ -64,6 +62,7 @@ func (c *Client) ReadResponse() (data []byte, err error) {
 		if _, message, err = c.Ws.ReadMessage(); err != nil {
 			return
 		}
+		fmt.Printf("raw response json: %s", string(message))
 		var res *Response
 		if err = json.Unmarshal(message, &res); err != nil {
 			return
