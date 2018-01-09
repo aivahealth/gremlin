@@ -62,10 +62,9 @@ func (c *Client) Exec(ctx context.Context, req *Request) ([]byte, error) {
 		return nil, err
 	}
 
-	var err error
 	retryCount := 0
 	for {
-		if err = c.Ws.WriteMessage(websocket.BinaryMessage, requestMessage); err != nil {
+		if err := c.Ws.WriteMessage(websocket.BinaryMessage, requestMessage); err != nil {
 			if retryCount < maxWriteRetries {
 				shared.Logger.For(ctx).Error(
 					"Failed to send gremlin request, will retry...",
