@@ -85,10 +85,10 @@ func (c *Client) Exec(ctx context.Context, req *Request) ([]byte, error) {
 		break
 	}
 
-	return c.ReadResponse()
+	return c.ReadResponse(ctx)
 }
 
-func (c *Client) ReadResponse() (data []byte, err error) {
+func (c *Client) ReadResponse(ctx context.Context) (data []byte, err error) {
 	// Data buffer
 	var message []byte
 	var dataItems []json.RawMessage
@@ -108,7 +108,7 @@ func (c *Client) ReadResponse() (data []byte, err error) {
 			return
 
 		case StatusAuthenticate:
-			return c.Authenticate(res.RequestId)
+			return c.Authenticate(ctx, res.RequestId)
 		case StatusPartialContent:
 			inBatchMode = true
 			if err = json.Unmarshal(res.Result.Data, &items); err != nil {
@@ -191,7 +191,7 @@ func OptAuthUserPass(user, pass string) OptAuth {
 }
 
 // Authenticates the connection
-func (c *Client) Authenticate(requestId string) ([]byte, error) {
+func (c *Client) Authenticate(ctx context.Context, requestId string) ([]byte, error) {
 	auth, err := NewAuthInfo(c.Auth...)
 	if err != nil {
 		return nil, err
@@ -209,7 +209,7 @@ func (c *Client) Authenticate(requestId string) ([]byte, error) {
 		Op:        "authentication",
 		Args:      args,
 	}
-	return c.Exec(authReq)
+	return c.Exec(authReq, ctx)
 }
 
 var servers []*url.URL
