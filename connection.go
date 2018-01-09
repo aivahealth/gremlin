@@ -1,6 +1,7 @@
 package gremlin
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -9,13 +10,24 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/aivahealth/gremlin/shared"
+
 	"github.com/gorilla/websocket"
+	"go.uber.org/zap"
+)
+
+const (
+	maxWriteRetries      = 5
+	retryBackoffDuration = time.Second * 3
 )
 
 // Clients include the necessary info to connect to the server and the underlying socket
 type Client struct {
+	sync.Mutex
+
 	Remote *url.URL
 	Ws     *websocket.Conn
 	Auth   []OptAuth
@@ -35,20 +47,45 @@ func NewClient(urlStr string, options ...OptAuth) (*Client, error) {
 }
 
 // Client executes the provided request
-func (c *Client) ExecQuery(query string) ([]byte, error) {
+func (c *Client) ExecQuery(ctx context.Context, query string) ([]byte, error) {
 	req := Query(query)
-	return c.Exec(req)
+	return c.Exec(ctx, req)
 }
 
-func (c *Client) Exec(req *Request) ([]byte, error) {
+func (c *Client) Exec(ctx context.Context, req *Request) ([]byte, error) {
+	// TODO: Client pooling
+	c.Lock()
+	defer c.Unlock()
+
 	requestMessage, err := GraphSONSerializer(req)
 	if err != nil {
 		return nil, err
 	}
-	// Open a TCP connection
-	if err = c.Ws.WriteMessage(websocket.BinaryMessage, requestMessage); err != nil {
-		return nil, err
+
+	var err error
+	retryCount := 0
+	for {
+		if err = c.Ws.WriteMessage(websocket.BinaryMessage, requestMessage); err != nil {
+			if retryCount < maxWriteRetries {
+				shared.Logger.For(ctx).Error(
+					"Failed to send gremlin request, will retry...",
+					zap.Int("retry_count", retryCount), zap.Error(err),
+				)
+				retryCount++
+				continue
+			} else {
+				shared.Logger.For(ctx).Error(
+					"Failed to send gremlin request, will retry...",
+					zap.Int("retry_count", retryCount), zap.Error(err),
+				)
+				return nil, err
+			}
+		}
+
+		// success
+		break
 	}
+
 	return c.ReadResponse()
 }
 
