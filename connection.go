@@ -209,7 +209,7 @@ func (c *Client) Authenticate(ctx context.Context, requestId string) ([]byte, er
 		Op:        "authentication",
 		Args:      args,
 	}
-	return c.Exec(authReq, ctx)
+	return c.Exec(ctx, authReq)
 }
 
 var servers []*url.URL
