@@ -53,10 +53,6 @@ func (c *Client) ExecQuery(ctx context.Context, query string) ([]byte, error) {
 }
 
 func (c *Client) Exec(ctx context.Context, req *Request) ([]byte, error) {
-	// TODO: Client pooling
-	c.Lock()
-	defer c.Unlock()
-
 	requestMessage, err := GraphSONSerializer(req)
 	if err != nil {
 		return nil, err
@@ -64,7 +60,11 @@ func (c *Client) Exec(ctx context.Context, req *Request) ([]byte, error) {
 
 	retryCount := 0
 	for {
-		if err := c.Ws.WriteMessage(websocket.BinaryMessage, requestMessage); err != nil {
+		// TODO: Client pooling
+		c.Lock()
+		err := c.Ws.WriteMessage(websocket.BinaryMessage, requestMessage)
+		c.Unlock()
+		if err != nil {
 			if retryCount < maxWriteRetries {
 				shared.Logger.For(ctx).Error(
 					"Failed to send gremlin request, will retry...",
@@ -95,7 +95,10 @@ func (c *Client) ReadResponse(ctx context.Context) (data []byte, err error) {
 	inBatchMode := false
 	// Receive data
 	for {
-		if _, message, err = c.Ws.ReadMessage(); err != nil {
+		c.Lock()
+		_, message, err = c.Ws.ReadMessage()
+		c.Unlock()
+		if err != nil {
 			return
 		}
 		var res *Response
