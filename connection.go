@@ -10,7 +10,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"fmt"
 
 	"github.com/gorilla/websocket"
 )
@@ -63,7 +62,6 @@ func (c *Client) ReadResponse() (data []byte, err error) {
 		if _, message, err = c.Ws.ReadMessage(); err != nil {
 			return
 		}
-		fmt.Printf("raw response json: %s", string(message))
 		var res *Response
 		if err = json.Unmarshal(message, &res); err != nil {
 			return
@@ -171,7 +169,7 @@ func (c *Client) Authenticate(requestId string) ([]byte, error) {
 	args := &RequestArgs{Sasl: saslEnc}
 	authReq := &Request{
 		RequestId: requestId,
-		Processor: "trasversal",
+		Processor: "traversal",
 		Op:        "authentication",
 		Args:      args,
 	}
